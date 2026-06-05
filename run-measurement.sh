@@ -9,7 +9,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 NEXUS="${EIDOLONS_NEXUS:-}"
 HOLDOUT="$HERE/holdout.example.yaml"
-VIA=""; K=5; SMOKE=false; OUTD="$HERE/results"
+VIA=""; K=5; SMOKE=false; OUTD="$HERE/results"; ALLOW=false
 MODEL_ID="${VIVI_MEASUREMENT_MODEL_ID:-unset}"
 
 usage() { sed -n '2,8p' "$0"; cat <<EOF
@@ -29,6 +29,7 @@ while [[ $# -gt 0 ]]; do case "$1" in
   --via)      VIA="$2"; shift 2;;
   --k)        K="$2"; shift 2;;
   --smoke)    SMOKE=true; shift;;
+  --allow-unsafe) ALLOW=true; shift;;
   --out)      OUTD="$2"; shift 2;;
   --model-id) MODEL_ID="$2"; shift 2;;
   -h|--help)  usage; exit 0;;
@@ -45,9 +46,10 @@ VIVI_DIR="${VIVI_DIR:-$(cd "$HERE/../vivi" 2>/dev/null && pwd || true)}"
 run_side() {  # $1=label  $2=driver
   local label="$1" driver="$2"; local extra=()
   if [[ "$SMOKE" != true ]]; then
-    [[ -n "$VIA" ]] || { echo "a real run needs --via <sandbox-cmd> (untrusted model code, R8-03)" >&2; exit 2; }
     [[ -x "$driver" ]] || { echo "fix-hook not executable: $driver (chmod +x, and wire the model — RUNBOOK.md)" >&2; exit 2; }
-    extra=(--fix-hook "$driver" --via "$VIA")
+    if   [[ -n "$VIA" ]];        then extra=(--fix-hook "$driver" --via "$VIA")
+    elif [[ "$ALLOW" == true ]]; then extra=(--fix-hook "$driver" --allow-unsafe-host)
+    else echo "a real run needs --via <sandbox-cmd> (R8-03) or --allow-unsafe-host (trusted tasks/model only)" >&2; exit 2; fi
   fi
   echo "→ $label  ($([[ "$SMOKE" == true ]] && echo 'SMOKE / gold_fix' || echo 'model-driven'))" >&2
   EIDOLONS_NEXUS="$NEXUS" VIVI_DIR="$VIVI_DIR" \

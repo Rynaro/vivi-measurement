@@ -1,0 +1,38 @@
+# Vivi measurement — PILOT holdout (NOT the locked N=30)
+# ───────────────────────────────────────────────────────
+# A small set of genuinely-non-trivial fix tasks to (a) prove the model-driven
+# pipeline end-to-end with a real `claude -p` fix-hook and (b) produce the FIRST
+# real Vivi-vs-APIVR-Δ datapoint. NOT the contamination-screened N=30 holdout
+# (that is built from reverted real org commits via build-task.sh — operator).
+# Each task has a gold_fix so the suite can be smoke-validated; in a model-driven
+# run the model (not gold_fix) must produce the fix.
+
+swe_version: "1.0"
+tasks:
+  - id: kv-multi-eq
+    description: "parse_value truncates values containing '='; must keep everything after the FIRST '='."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > parse.sh <<'SH'
+      parse_value() { printf '%s' "$1" | cut -d= -f2; }
+      SH
+      git add -A && git commit -qm "broken: parse_value drops text after a second ="
+    test: |
+      . ./parse.sh; [ "$(parse_value 'url=http://x?a=b')" = "http://x?a=b" ]
+    gold_fix: |
+      printf 'parse_value() { printf "%%s" "${1#*=}"; }\n' > parse.sh
+
+  - id: fizzbuzz-order
+    description: "fizzbuzz prints 'Fizz' for 15 instead of 'FizzBuzz' (the %15 branch is unreachable). Fix the order."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > fb.sh <<'SH'
+      fizzbuzz() { n=$1; if [ $((n%3)) -eq 0 ]; then echo Fizz; elif [ $((n%5)) -eq 0 ]; then echo Buzz; elif [ $((n%15)) -eq 0 ]; then echo FizzBuzz; else echo "$n"; fi; }
+      SH
+      git add -A && git commit -qm "broken: fizzbuzz check order wrong for 15"
+    test: |
+      . ./fb.sh; [ "$(fizzbuzz 15)" = "FizzBuzz" ] && [ "$(fizzbuzz 3)" = "Fizz" ] && [ "$(fizzbuzz 5)" = "Buzz" ]
+    gold_fix: |
+      cat > fb.sh <<'SH'
+      fizzbuzz() { n=$1; if [ $((n%15)) -eq 0 ]; then echo FizzBuzz; elif [ $((n%3)) -eq 0 ]; then echo Fizz; elif [ $((n%5)) -eq 0 ]; then echo Buzz; else echo "$n"; fi; }
+      SH
