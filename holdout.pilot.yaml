@@ -36,3 +36,29 @@ tasks:
       cat > fb.sh <<'SH'
       fizzbuzz() { n=$1; if [ $((n%15)) -eq 0 ]; then echo FizzBuzz; elif [ $((n%3)) -eq 0 ]; then echo Fizz; elif [ $((n%5)) -eq 0 ]; then echo Buzz; else echo "$n"; fi; }
       SH
+
+  - id: normalize-two-bugs
+    description: "normalize must trim surrounding whitespace AND lowercase; buggy returns input unchanged — likely needs two fixes (iteration test)."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > norm.sh <<'SH'
+      normalize() { printf '%s' "$1"; }
+      SH
+      git add -A && git commit -qm "broken: normalize is a no-op"
+    test: |
+      . ./norm.sh; [ "$(normalize '  HeLLo  ')" = "hello" ] && [ "$(normalize 'WORLD')" = "world" ]
+    gold_fix: |
+      printf 'normalize() { printf "%%s" "$1" | sed "s/^[[:space:]]*//;s/[[:space:]]*$//" | tr "[:upper:]" "[:lower:]"; }\n' > norm.sh
+
+  - id: sum-off-by-one
+    description: "sum_to(n) must total 1..n inclusive; buggy loop stops at n-1 (off-by-one). sum_to(5)=15, sum_to(1)=1."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > sum.sh <<'SH'
+      sum_to() { n=$1; s=0; i=1; while [ "$i" -lt "$n" ]; do s=$((s+i)); i=$((i+1)); done; echo "$s"; }
+      SH
+      git add -A && git commit -qm "broken: sum_to off-by-one (i < n)"
+    test: |
+      . ./sum.sh; [ "$(sum_to 5)" = "15" ] && [ "$(sum_to 1)" = "1" ]
+    gold_fix: |
+      printf 'sum_to() { n=$1; s=0; i=1; while [ "$i" -le "$n" ]; do s=$((s+i)); i=$((i+1)); done; echo "$s"; }\n' > sum.sh
