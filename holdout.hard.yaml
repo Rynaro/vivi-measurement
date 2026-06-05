@@ -1,0 +1,53 @@
+# Vivi measurement — DISCRIMINATING (hard) suite
+# ────────────────────────────────────────────────
+# Subtle, multi-assertion bugs meant to make a WEAKER host fail the first attempt
+# and iterate — the regime where localized feedback (Vivi) should beat a raw tail
+# (APIVR-Δ). Run with `--model haiku` (weak host) for the real signal. GNU tools
+# (sort -V, awk) → run in a debian sandbox, not busybox/alpine.
+
+swe_version: "1.0"
+tasks:
+  - id: semver-compare
+    description: "vercmp must compare versions NUMERICALLY: vercmp 1.10.0 1.9.0 = gt (lexical sort gets it wrong)."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > ver.sh <<'SH'
+      vercmp() { [ "$1" = "$2" ] && { echo eq; return; }; g=$(printf '%s\n%s\n' "$1" "$2" | sort | tail -1); [ "$g" = "$1" ] && echo gt || echo lt; }
+      SH
+      git add -A && git commit -qm "broken: vercmp uses lexical sort"
+    test: |
+      . ./ver.sh; [ "$(vercmp 1.10.0 1.9.0)" = gt ] && [ "$(vercmp 1.9.0 1.10.0)" = lt ] && [ "$(vercmp 2.0.0 2.0.0)" = eq ]
+    gold_fix: |
+      cat > ver.sh <<'SH'
+      vercmp() { [ "$1" = "$2" ] && { echo eq; return; }; g=$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1); [ "$g" = "$1" ] && echo gt || echo lt; }
+      SH
+
+  - id: dedup-order
+    description: "dedup must drop duplicates PRESERVING first-seen order: dedup 'c a c b a' = 'c a b' (sort -u reorders)."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > dd.sh <<'SH'
+      dedup() { printf '%s' "$1" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/ $//'; }
+      SH
+      git add -A && git commit -qm "broken: dedup uses sort -u (loses order)"
+    test: |
+      . ./dd.sh; [ "$(dedup 'c a c b a')" = 'c a b' ] && [ "$(dedup 'x x x')" = 'x' ]
+    gold_fix: |
+      cat > dd.sh <<'SH'
+      dedup() { printf '%s' "$1" | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//'; }
+      SH
+
+  - id: titlecase-two-step
+    description: "titlecase must (1) lowercase then (2) capitalize each word's first letter: 'hELLo wORLD' = 'Hello World'. Buggy is a no-op."
+    setup: |
+      git init -q && git config user.email t@e.com && git config user.name t
+      cat > tc.sh <<'SH'
+      titlecase() { printf '%s' "$1"; }
+      SH
+      git add -A && git commit -qm "broken: titlecase no-op"
+    test: |
+      . ./tc.sh; [ "$(titlecase 'hELLo wORLD')" = 'Hello World' ] && [ "$(titlecase 'a')" = 'A' ]
+    gold_fix: |
+      cat > tc.sh <<'SH'
+      titlecase() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | awk '{for(i=1;i<=NF;i++)$i=toupper(substr($i,1,1)) substr($i,2)}1'; }
+      SH

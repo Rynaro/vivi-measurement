@@ -29,3 +29,24 @@ Based on this run + the pilot, it would **most likely confirm Δ≈0 on resolved
 
 ## Bonus — a real bug found by RUNNING (not assuming)
 The first run surfaced + fixed a genuine 1c loop bug: the loop printed the fix-hook's stdout (an LLM CLI's verbose response) onto its own `--json` ledger → `eval swe`'s `jq` parse failed → **resolved tasks mis-counted as unresolved**. Fixed: nexus `0b8149e` (`bash -c "$FIX_HOOK" >&2` + regression bats, 21/21). Validates the research's "documentary ≠ behavioral — measure, don't assume."
+
+## Discriminating run (2026-06-05) — WEAK host (haiku), hard suite
+3 harder tasks (`semver-compare`, `dedup-order`, `titlecase-two-step`), debian-isolated, `claude -p --model haiku` (weak-host probe), k=1.
+
+| | resolved | rate | Δ |
+|---|---|---|---|
+| **Vivi** | 2/3 | 0.67 | |
+| **APIVR-Δ** | 3/3 | 1.0 | **Vivi −0.33** |
+
+Per-task: `semver-compare` — Vivi capped (unresolved), APIVR-Δ passed; `dedup-order` + `titlecase-two-step` both passed. (Single k=1 sample — directional, not definitive; haiku is stochastic.)
+
+### Combined finding (strong + weak)
+| host | Vivi | APIVR-Δ | Δ |
+|---|---|---|---|
+| strong (opus) | 4/4 | 4/4 | 0 |
+| weak (haiku) | 2/3 | 3/3 | −0.33 |
+
+**Resolved-rate does not favour Vivi anywhere — it TIES on a capable host and is ≤ on a weak one.** This empirically confirms the host-contingency thesis (the loop's gain belongs to the RL-trained host; the loop degrades on weak hosts — RLEF) and **strongly validates retaining APIVR-Δ as the conservative weak-host fallback**. Vivi's case for *default* rests on the autonomous loop (throughput/convenience) + guardrails (adversarial/long-horizon safety), NOT fix-rate.
+
+### Implication for Stage 3b (default-coder flip)
+The data does **not** support an UNCONDITIONAL flip of Vivi to the default coder — it would regress weak-host consumers. Honest options: (1) keep APIVR-Δ default, Vivi opt-in until a strong-host WIN (not just a tie) is shown; (2) flip Vivi default but HOST-CONDITIONALLY (cortex steers weak/loop-incompetent hosts to APIVR-Δ); (3) unconditional flip on autonomy+guardrails grounds, with prominent host-contingency docs. Recommend (2) or (1) over (3).
