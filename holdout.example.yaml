@@ -1,0 +1,33 @@
+# Vivi measurement — EXAMPLE holdout suite (Track B)
+# ───────────────────────────────────────────────────
+# Conforms to the nexus `schemas/swe-suite.schema.json` (consumed by
+# `eidolons eval swe`). These two tasks are the nexus SMOKE tasks — self-contained,
+# with a gold_fix — used ONLY to validate the measurement harness wiring end-to-end
+# (`run-measurement.sh --smoke`). They are NOT the real holdout.
+#
+# The REAL holdout = N=30 tasks built by `build-task.sh` from blind-selected,
+# post-cutoff, test-backed fix commits across the Eidolons-org repos
+# (~40% nexus / 25% crystalium / 20% GAMBIT / 15% junction). It is PRIVATE
+# (gitignored) to stay contamination-free. See RUNBOOK.md.
+
+swe_version: "1.0"
+tasks:
+  - id: smoke-greet
+    description: "greet.sh prints the wrong string; the test greps for 'hello world'. One-line fix."
+    setup: |
+      git init -q && git config user.email t@example.com && git config user.name tester
+      printf 'echo hello\n' > greet.sh
+      git add -A && git commit -qm "broken: greet prints 'hello' not 'hello world'"
+    test: "sh greet.sh | grep -q 'hello world'"
+    gold_fix: |
+      printf 'echo "hello world"\n' > greet.sh
+
+  - id: smoke-exit-code
+    description: "check.sh exits non-zero; the test asserts a clean exit. Fix flips the exit status."
+    setup: |
+      git init -q && git config user.email t@example.com && git config user.name tester
+      printf '#!/bin/sh\nexit 1\n' > check.sh
+      git add -A && git commit -qm "broken: check exits 1"
+    test: "sh check.sh"
+    gold_fix: |
+      printf '#!/bin/sh\nexit 0\n' > check.sh

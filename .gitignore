@@ -1,0 +1,8 @@
+# Track B — the HARNESS is shareable; the PRIVATE holdout + results are NOT
+# (committing the holdout would contaminate future evals).
+results/
+holdout.yaml
+holdout.private.yaml
+tasks/
+*.local.*
+*.log
