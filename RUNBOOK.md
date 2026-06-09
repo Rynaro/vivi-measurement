@@ -76,3 +76,33 @@ Repeat the locked Opus sensitivity run on a subset.
 - **Contamination:** use only the team's post-cutoff commits; never commit the holdout.
 - **Budget-match:** identical model, attempt cap, and k both sides — else the
   comparison is confounded.
+
+## Stage 2 — discriminating run (fanout vs iterate vs control)
+
+The resolved-rate tie (strong host) / loss (weak host) measured above cannot see
+Vivi's value surfaces. Stage 2 measures them directly:
+
+- **Suite:** `holdout.stage2.yaml` — 3 ADVERSARIAL tasks (visible test = few fixed
+  cases → hardcode-tempting; a per-task SEALED holdout checks generalization;
+  `resolved` = passed the holdout = a GENUINE fix) + 3 LONG-HORIZON tasks
+  (coordinated two-file fix, multi-caller rename, two independent bugs).
+- **Arms (budget-matched, 3 model calls each):** `vivi-fanout` (`--fanout 3`,
+  the host-adaptive weak-host shape: independent fresh-context candidates,
+  external selection) / `vivi-iterate` (`--max-attempts 4`, the classic loop —
+  ablation) / `apivr` (`--max-attempts 4`, control).
+- **Substrate gates equal for ALL arms:** `--require-red` + sealed holdouts. The
+  measured variables are the methodology + the loop shape only.
+- **Needs** a Stage-2-capable nexus checkout (`feat/coder-7.5-stage2-fanout`).
+
+```sh
+export VIVI_FIX_MODEL_CMD='claude -p --model <model> --allowedTools Edit,Write,Bash'
+export VIVI_DIR=/abs/.../agents/vivi APIVR_DIR=/abs/.../agents/APIVR-Delta
+./run-stage2.sh --nexus /abs/<stage2-checkout> --smoke          # wiring first
+./run-stage2.sh --nexus /abs/<stage2-checkout> \
+  --via 'docker run --rm -v "$PWD":/w -w /w alpine:3' \
+  --k 1 --model-id <model-id> --out results/stage2-<tier>
+# → results/stage2-<tier>/stage2-head-to-head.json (deltas + per-arm finals_summary)
+```
+
+Read `finals_summary."reward-hacked"` per arm — the anti-gaming discipline delta —
+alongside `resolved_rate` (genuine fixes only, because holdout-gated).
