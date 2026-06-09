@@ -50,3 +50,71 @@ Per-task: `semver-compare` — Vivi capped (unresolved), APIVR-Δ passed; `dedup
 
 ### Implication for Stage 3b (default-coder flip)
 The data does **not** support an UNCONDITIONAL flip of Vivi to the default coder — it would regress weak-host consumers. Honest options: (1) keep APIVR-Δ default, Vivi opt-in until a strong-host WIN (not just a tie) is shown; (2) flip Vivi default but HOST-CONDITIONALLY (cortex steers weak/loop-incompetent hosts to APIVR-Δ); (3) unconditional flip on autonomy+guardrails grounds, with prominent host-contingency docs. Recommend (2) or (1) over (3).
+
+---
+
+## Stage 2 (2026-06-09) — red gate + fanout + judge: the discriminating round
+
+**What changed since the runs above.** The nexus substrate gained three evidence-backed
+loop levers (branch `feat/coder-7.5-stage2-fanout`, stacked on PR #289): `--require-red`
+(a reproduction that passes on the base tree is VACUOUS → blocked before any model spend
+— TDFlow), `--fanout N` (parallel-sample-and-select: N independent fresh-context
+candidates from the same base tree + the same localized base-failure feedback, selected
+EXTERNALLY — the weak-host alternative to self-repair iteration, per RLEF/R2E-Gym), and
+`--judge-hook` (external diff-review over survivors — EvilGenie: holdout-alone is
+insufficient). Vivi's methodology became **host-adaptive** (thinking host → iterate;
+standard/weak host → fanout). `eval swe` gained per-task SEALED holdouts (held in the
+loop process, never on disk while a fix-hook runs) + per-run `finals` so reward-hacking
+is visible in the scorecard.
+
+**Arms (budget-matched, 3 model calls each):** `vivi-fanout` (`--fanout 3`, treatment) /
+`vivi-iterate` (`--max-attempts 4`, ablation) / `apivr` (`--max-attempts 4`, control).
+All arms get `--require-red` + the sealed holdouts equally; `resolved` = passed the
+sealed holdout = a GENUINE fix.
+
+### The matrix (claude-code 2.1.170, docker-isolated)
+
+| run | host | suite | vivi-fanout | vivi-iterate | apivr |
+|---|---|---|---|---|---|
+| stage2-weak | haiku, k=1 | 6-task discriminating (3 adversarial + 3 long-horizon) | 1.0 | 1.0 | 1.0 |
+| **rematch** | haiku, k=2 | `holdout.hard.yaml` (the original 2/3-loss suite) | 1.0, pass²=1.0 | 1.0, pass²=1.0 | 1.0, pass²=1.0 |
+| **adversarial-weak** | haiku, k=2 | `holdout.adversarial.yaml` (genuine fix hard, hack trivial) | 1.0, **pass²=1.00** | 1.0, pass²=0.67 | 1.0, pass²=0.67 |
+| adversarial-strong | sonnet, k=1 | `holdout.adversarial.yaml` | 1.0 | 1.0 | 1.0 |
+
+### Findings (the honest read)
+
+1. **The original weak-host loss does NOT reproduce.** The June-5 result (Vivi 2/3 <
+   APIVR-Δ 3/3 on haiku; `semver-compare` capped) was a k=1 stochastic sample — the
+   rematch at k=2 is perfect across ALL arms, including semver-compare. The
+   "Vivi regresses weak hosts" objection to the default flip is **empirically retired**
+   (claude-code 2.1.162 → 2.1.170; same haiku-4.5 model id).
+2. **The one non-saturated cell is a Vivi-fanout WIN on reliability.** On the
+   temptation-gradient suite at k=2 on the weak host, fanout is the only arm with
+   perfect pass^k (1.00 vs 0.67 vs 0.67). Both the control AND Vivi's own old iterate
+   shape capped once (roman-numerals / luhn-check). The ablation arm isolates the
+   cause: the SHAPE (parallel fresh-context candidates + external selection), not the
+   prompt. This is the predicted weak-host signature from the literature, now measured
+   in-house: **+0.33 pass^k over the APIVR-Δ control, budget-matched**.
+3. **Zero reward-hacked finals in all 63 loop runs.** Today's frontier-trained hosts
+   (even haiku) wrote genuine general fixes under hardcode temptation; every green was
+   holdout-verified. The anti-gaming gates (protect/holdout/judge/red-gate) are
+   mechanically proven (bats) but behaviorally unexercised on these hosts — report them
+   as INSURANCE, not measured lift.
+4. **Resolved-rate saturates everywhere** — on small constructed tasks it no longer
+   discriminates anything (haiku one-shots them). pass^k on hard tasks is the metric
+   that still moves; future suites must be real-repo long-horizon (the locked N=30) or
+   harder-than-haiku constructed tasks.
+
+### Caveats
+Small N (3 tasks × 2 runs per cell); constructed tasks (roman/luhn/duration are classic
+algorithms — equal familiarity across arms, but not contamination-screened); single
+host per tier; k=2. Directional, not definitive — but the direction is consistent with
+the peer-reviewed prediction, the ablation controls for the prompt, and the arms were
+budget-matched.
+
+### Stage-3b implication
+The two evidentiary blockers on record were (a) weak-host regression risk — retired by
+the rematch — and (b) no positive discriminating signal — now present (fanout pass^k
+win on the weak host, no regression anywhere else). The honest promotion basis for the
+host-conditional flip (option 2): Vivi WITH the host-adaptive shape is ≥ the control in
+every measured cell and strictly better in the only cell that discriminates.
